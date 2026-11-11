@@ -1,0 +1,66 @@
+name: Atelier T - tour automatique
+
+# Premier temps : lancement MANUEL seulement (onglet Actions > Run workflow).
+# Quand les essais sont concluants, décommenter le bloc "schedule" ci-dessous.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "1 = essai (aucun appel de modèle, aucune écriture). 0 = réel."
+        default: "1"
+        required: true
+  # schedule:
+  #   - cron: "*/5 * * * *"   # toutes les 5 minutes (heures indicatives, retards possibles)
+
+# Jamais deux exécutions en même temps : évite les doubles réponses.
+concurrency:
+  group: atelier-t
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tour:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Les journaux d'un dépôt public sont publics : le script n'y écrit
+      # que des identifiants et des montants, jamais le contenu des passes.
+      - name: Traiter au plus une passe
+        run: python orchestrator.py
+        env:
+          # Sécurité : sans variable DRY_RUN à 0, l'exécution planifiée reste en essai.
+          DRY_RUN: ${{ github.event.inputs.dry_run || vars.DRY_RUN || '1' }}
+          ATELIER_PAUSE: ${{ vars.ATELIER_PAUSE }}
+
+          # Secrets (Settings > Secrets and variables > Actions > Secrets)
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATA_SOURCE_ID: ${{ secrets.NOTION_DATA_SOURCE_ID }}
+          CADRAGE_CLAUDE_PAGE_ID: ${{ secrets.CADRAGE_CLAUDE_PAGE_ID }}
+          CADRAGE_ARCHIE_PAGE_ID: ${{ secrets.CADRAGE_ARCHIE_PAGE_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+          # Variables (même écran, onglet Variables)
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          OPENAI_REASONING_EFFORT: ${{ vars.OPENAI_REASONING_EFFORT }}
+          PRICE_ANTHROPIC_IN: ${{ vars.PRICE_ANTHROPIC_IN }}
+          PRICE_ANTHROPIC_OUT: ${{ vars.PRICE_ANTHROPIC_OUT }}
+          PRICE_OPENAI_IN: ${{ vars.PRICE_OPENAI_IN }}
+          PRICE_OPENAI_OUT: ${{ vars.PRICE_OPENAI_OUT }}
+          MAX_MONTHLY_USD: ${{ vars.MAX_MONTHLY_USD }}
+          MAX_CALL_USD: ${{ vars.MAX_CALL_USD }}
+          MAX_TURNS: ${{ vars.MAX_TURNS }}
+          COST_MARGIN: ${{ vars.COST_MARGIN }}
+          MAX_OUTPUT_TOKENS: ${{ vars.MAX_OUTPUT_TOKENS }}
+          CONTEXT_PASSES: ${{ vars.CONTEXT_PASSES }}
+          MAX_CHARS_PER_PASS: ${{ vars.MAX_CHARS_PER_PASS }}
+          NOTION_VERSION: ${{ vars.NOTION_VERSION }}
